@@ -94,7 +94,6 @@ export const createBooking = async (req, res) => {
   }
 };
 
-
 // Delete booking by id - only if user owns it
 export const deleteBooking = async (req, res) => {
   try {
@@ -130,3 +129,5 @@ export const deleteBooking = async (req, res) => {
       .json({ message: "Error deleting booking", error: err.message });
   }
 };
+
+

@@ -36,6 +36,8 @@ bookingSchema.index(
   { unique: true }
 );
 
+bookingSchema.index({date : 1},{expireAfterSeconds: 86400});
+
 const Booking = mongoose.model("Booking", bookingSchema, "bookings");
 
 export default Booking;

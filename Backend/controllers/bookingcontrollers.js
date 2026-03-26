@@ -52,10 +52,11 @@ export const getAllBookings = async (req, res) => {
 export const createBooking = async (req, res) => {
   try {
     const { seat, date, slot, seatId } = req.body;
-    const userId = req.user.id; // Get user from JWT
+    const userId = req.user.id;
 
-    // FIXED DATE HANDLING
+    // ✅ FIXED: set to end of day so TTL doesn't delete too early
     const mybook = new Date(date.split("T")[0]);
+    mybook.setHours(23, 59, 59, 999); // ✅ 2026-03-26T23:59:59.999Z
 
     const nextDate = new Date(mybook);
     nextDate.setDate(nextDate.getDate() + 1);
@@ -76,7 +77,7 @@ export const createBooking = async (req, res) => {
       user: userId,
       seat,
       seatId,
-      date: mybook,
+      date: mybook, // ✅ now stores end of day
       slot,
     });
 
@@ -87,6 +88,11 @@ export const createBooking = async (req, res) => {
       booking: newBooking,
     });
   } catch (err) {
+    if (err.code === 11000) {
+      return res.status(400).json({
+        message: "Seat was just booked by someone else, please try another seat or slot",
+      });
+    }
     res.status(500).json({
       message: "Error creating booking",
       error: err.message,

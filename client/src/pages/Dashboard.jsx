@@ -1,11 +1,16 @@
-import React, { useContext } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { FiCalendar, FiMapPin } from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
 import { BookingContext } from "../context/BookingContext";
 import { AuthContext } from "../context/AuthContext";
 
 const Dashboard = () => {
-  const { seats, bookings, getSeatStatus } = useContext(BookingContext);
+  const { seats, bookings, getSeatStatus, fetchAllBookings, allBookings } =
+    useContext(BookingContext);
   const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
+
+  const [calendarDate] = useState(() => new Date());
 
   // Formatted Date for UI
   const today = new Date().toLocaleDateString("en-US", {
@@ -23,18 +28,45 @@ const Dashboard = () => {
     (b) => b.user?._id === user?._id && b.date === todayISO,
   );
 
-  // Available Seats Today
-  const availableSeatsToday = seats.filter(
-    (seat) => getSeatStatus(seat.id, todayISO) === "available",
+  // Load all bookings for calendar glance
+  useEffect(() => {
+    if (fetchAllBookings) {
+      fetchAllBookings();
+    }
+  }, [fetchAllBookings]);
+
+  const deskSeats = seats.filter((seat) => seat.type === "desk");
+  const totalSeats = deskSeats.length || 1;
+  const utilizationToday =
+    totalSeats > 0 ? Math.round((bookingsToday.length / totalSeats) * 100) : 0;
+
+  // Calendar helpers
+  const calendarYear = calendarDate.getFullYear();
+  const calendarMonth = calendarDate.getMonth(); // 0-11
+  const firstOfMonth = new Date(calendarYear, calendarMonth, 1);
+  const startWeekday = firstOfMonth.getDay(); // 0 (Sun) - 6 (Sat)
+  const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+
+  const userBookedDates = new Set(
+    (allBookings || [])
+      .filter((b) => b.user?._id === user?._id)
+      .map((b) => new Date(b.date).toISOString().split("T")[0]),
   );
 
-  // Upcoming Bookings (Today + Future) - Only current user's bookings
-  const upcomingBookings = bookings
-    .filter((b) => b.user?._id === user?._id && b.date >= todayISO)
-    .sort((a, b) => new Date(a.date) - new Date(b.date));
+  const calendarCells = [
+    ...Array(startWeekday).fill(null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ];
+
+  const handleCalendarClick = (day) => {
+    if (!day) return;
+    const date = new Date(calendarYear, calendarMonth, day);
+    const iso = date.toISOString().split("T")[0];
+    navigate(`/floor-map?date=${iso}`);
+  };
 
   return (
-    <div className="max-w-6xl mx-auto p-8 bg-gray-50/50 min-h-screen">
+    <div className="max-w-6xl mx-auto p-8 bg-transparent min-h-screen">
       {/* Header: More personality with a subtle greeting color */}
       <header className="mb-10 flex justify-between items-end">
         <div>
@@ -61,8 +93,8 @@ const Dashboard = () => {
             color: "blue",
           },
           {
-            label: "Seats available",
-            val: availableSeatsToday.length,
+            label: "Total seats",
+            val: totalSeats,
             icon: "🛋",
             color: "green",
           },
@@ -94,66 +126,132 @@ const Dashboard = () => {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Upcoming Bookings: Clean list with a "Ticket" feel */}
-
-        <div className="lg:col-span-3 bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <h2 className="text-xl font-bold text-gray-800">
-                Upcoming Bookings
-              </h2>
-              <p className="text-gray-400 text-xs font-semibold uppercase tracking-widest">
-                Active Reservations
-              </p>
-            </div>
-            <button className="text-blue-600 font-bold text-sm hover:underline">
-              View All
-            </button>
+      {/* Mini calendar glance */}
+      <div className="mb-10 rounded-3xl bg-slate-900/90 border border-slate-700/80 shadow-xl shadow-slate-950/60 p-5 md:p-6 text-slate-100">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-[0.25em]">
+              Calendar glance
+            </p>
+            <p className="text-sm text-slate-100 font-medium">
+              Click a day to open Floor Map for that date
+            </p>
           </div>
+          <div className="flex items-center gap-2 text-slate-300 text-sm px-3 py-1 rounded-full bg-slate-800/70 border border-slate-700/80">
+            <FiCalendar className="text-blue-300" />
+            <span className="font-medium">
+              {calendarDate.toLocaleDateString("en-US", {
+                month: "long",
+                year: "numeric",
+              })}
+            </span>
+          </div>
+        </div>
 
-          {upcomingBookings.length === 0 ? (
-            <div className="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
-              <p className="text-gray-400 font-medium">
-                No bookings yet. Start by picking a seat!
+        <div className="grid grid-cols-7 gap-1 text-[11px] text-slate-400 mb-2">
+          {["S", "M", "T", "W", "T", "F", "S"].map((d) => (
+            <div key={d} className="text-center font-semibold tracking-wide">
+              {d}
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-7 gap-1.5 text-xs">
+          {calendarCells.map((day, idx) => {
+            if (!day) {
+              return <div key={idx} />;
+            }
+            const date = new Date(calendarYear, calendarMonth, day);
+            const iso = date.toISOString().split("T")[0];
+            const hasBooking = userBookedDates.has(iso);
+            const isToday = iso === todayISO;
+
+            return (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => handleCalendarClick(day)}
+                className={`relative flex h-9 w-9 items-center justify-center rounded-2xl border text-xs transition
+                  ${
+                    isToday
+                      ? "border-blue-400 text-blue-100 bg-blue-500/20 shadow-[0_0_0_1px_rgba(59,130,246,0.6)]"
+                      : "border-transparent text-slate-100 hover:bg-slate-800/80 hover:border-slate-600/70"
+                  }
+                `}
+                title={iso}
+              >
+                <span className="font-medium">{day}</span>
+                {hasBooking && (
+                  <span className="absolute bottom-1 h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_0_2px_rgba(15,23,42,0.9)]" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-4 flex items-center justify-between text-[11px] text-slate-400">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_0_2px_rgba(15,23,42,0.9)]" />
+            <span>Day with at least one booking</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="h-4 w-4 rounded-md border border-blue-400 bg-blue-500/20" />
+            <span>Today</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {/* Utilization + quick facts */}
+        <div className="rounded-3xl bg-slate-900/80 border border-slate-700/80 p-5 shadow-xl shadow-slate-950/40">
+          <p className="text-xs uppercase tracking-[0.25em] text-slate-500 font-semibold mb-3">
+            Today&apos;s utilization
+          </p>
+          <div className="flex items-end justify-between mb-4">
+            <div>
+              <p className="text-3xl font-black text-slate-50">
+                {utilizationToday}%
+              </p>
+              <p className="text-xs text-slate-400 mt-1">
+                Based on your bookings vs. total seats.
               </p>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {upcomingBookings.slice(0, 3).map((booking) => (
-                <div
-                  key={booking._id}
-                  className="group flex justify-between items-center p-4 bg-white hover:bg-gray-50 rounded-2xl border border-gray-100 transition-colors"
-                >
-                  <div className="flex items-center gap-5">
-                    <div className="bg-gray-900 text-white w-14 h-14 rounded-2xl flex flex-col items-center justify-center shadow-inner">
-                      <span className="text-xs text-gray-400 uppercase leading-none">
-                        Seat
-                      </span>
-                      <span className="text-lg font-bold leading-none mt-1">
-                        {booking.seat.seatId}
-                      </span>
-                    </div>
-
-                    <div>
-                      <p className="text-gray-900 font-bold">
-                        Main Floor • Zone A
-                      </p>
-                      <p className="text-gray-500 text-sm flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                        {booking.date} · {booking.slot}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <span className="bg-blue-50 text-blue-700 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-tighter">
-                      Confirmed
-                    </span>
-                  </div>
-                </div>
-              ))}
+            <div className="relative h-16 w-16">
+              <div className="absolute inset-0 rounded-full border-4 border-slate-700/70" />
+              <div
+                className="absolute inset-1 rounded-full bg-linear-to-tr from-blue-500 to-emerald-400 opacity-70"
+                style={{
+                  clipPath: `inset(${100 - utilizationToday}% 0 0 0)`,
+                }}
+              />
             </div>
-          )}
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-[11px] text-slate-400">
+            <div className="flex flex-col gap-1">
+              <span className="font-semibold text-slate-300">Total seats</span>
+              <span className="text-sm text-slate-200 font-medium">
+                {totalSeats}
+              </span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="font-semibold text-slate-300">
+                Your bookings
+              </span>
+              <span className="text-sm text-slate-200 font-medium">
+                {bookingsToday.length} today
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-3xl bg-slate-900/70 border border-slate-700/70 p-4 text-[11px] text-slate-400">
+          <p className="font-semibold text-slate-200 mb-1">
+            Tip for better planning
+          </p>
+          <p>
+            Weekdays tend to fill up faster. Try reserving seats a few days
+            ahead using the Floor Map to avoid last-minute rush.
+          </p>
         </div>
       </div>
     </div>

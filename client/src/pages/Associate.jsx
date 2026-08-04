@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   BarChart,
   Bar,
@@ -16,6 +17,7 @@ import {
   FiCalendar,
   FiUsers,
   FiTrendingUp,
+  FiArrowLeft,
 } from "react-icons/fi";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -34,6 +36,9 @@ const MONTHS = [
   "Nov",
   "Dec",
 ];
+
+const CURRENT_YEAR = new Date().getFullYear();
+const YEAR_OPTIONS = Array.from({ length: 10 }, (_, i) => CURRENT_YEAR - 5 + i);
 
 // ─── Custom Tooltip ───────────────────────────────────────────────────────────
 
@@ -73,13 +78,18 @@ function FilterBar({ year, setYear, month, setMonth, onApply, loading }) {
           <label className="block text-xs font-semibold text-gray-400 mb-1.5">
             Year
           </label>
-          <input
-            type="number"
+          <select
             value={year}
             onChange={(e) => setYear(e.target.value)}
-            placeholder="2026"
-            className="bg-gray-800 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-2.5 w-36 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-          />
+            className="bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-2.5 w-36 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+          >
+            <option value="">Select Year</option>
+            {YEAR_OPTIONS.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div>
@@ -168,6 +178,8 @@ export default function Associate() {
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState("");
 
+  const navigate = useNavigate();
+
   const filterRef = useRef({ year, month });
   useEffect(() => {
     filterRef.current = { year, month };
@@ -233,16 +245,27 @@ export default function Associate() {
   return (
     <div className="min-h-screen bg-gray-950 p-8">
       {/* ── Header ── */}
-      <div className="mb-10">
-        <p className="text-xs font-semibold text-blue-400 uppercase tracking-widest mb-1">
-          Admin Dashboard
-        </p>
-        <h1 className="text-3xl font-black text-white tracking-tight">
-          Associate Utilization
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Individual-level booking activity and seat usage per associate
-        </p>
+      <div className="mb-10 flex items-center justify-between">
+        <div>
+          <p className="text-xs font-semibold text-blue-400 uppercase tracking-widest mb-1">
+            Admin Dashboard
+          </p>
+          <h1 className="text-3xl font-black text-white tracking-tight">
+            Associate Utilization
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Individual-level booking activity and seat usage per associate
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-700 text-sm font-medium text-gray-200 hover:bg-gray-900 hover:border-gray-500 transition-colors"
+        >
+          <FiArrowLeft className="text-base" />
+          Back
+        </button>
       </div>
 
       <FilterBar

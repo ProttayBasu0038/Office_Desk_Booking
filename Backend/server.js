@@ -1,13 +1,15 @@
+import dotenv from "dotenv";
+dotenv.config();
 import express from "express";
 import cors from "cors";
 import seatRoutes from "./routes/seatsRouts.js";
 import bookingRoutes from "./routes/bookingRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import connectDB from "./db/db.js";
-import { config } from "dotenv";
 import adminRoutes from "./routes/adminroutes.js";
+import userRoutes from "./routes/userroutes.js";
+import redisclient from "./config/redis.js";
 
-config(); // Load environment variables from .env file
 const app = express();
 
 connectDB();
@@ -25,6 +27,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/seats", seatRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/admin", userRoutes);
 
 const port = 5000;
 
